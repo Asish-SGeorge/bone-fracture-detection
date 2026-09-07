@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from transformers import pipeline
 from PIL import Image, ImageDraw, ImageFilter
-import matplotlib.cm as cm
+from matplotlib import colormaps
 
 st.set_page_config(page_title="Bone Fracture Detection", page_icon="🦴", layout="centered")
 
@@ -28,13 +28,18 @@ def load_model():
 def make_attention_box(pipe, image, class_index):
     """Return an approximate attention box for the predicted class."""
     model = pipe.model
+    model.eval()
     inputs = pipe.image_processor(images=image, return_tensors="pt")
     device = next(model.parameters()).device
     pixel_values = inputs["pixel_values"].to(device).requires_grad_(True)
 
-    model.zero_grad(set_to_none=True)
-    logits = model(pixel_values=pixel_values).logits
-    logits[0, class_index].backward()
+    with torch.enable_grad():
+        model.zero_grad(set_to_none=True)
+        logits = model(pixel_values=pixel_values).logits
+        logits[0, class_index].backward()
+
+    if pixel_values.grad is None:
+        return image.copy(), None, None
 
     saliency = pixel_values.grad.detach().abs().mean(dim=1)[0]
     saliency -= saliency.min()
@@ -76,14 +81,11 @@ def make_attention_box(pipe, image, class_index):
     draw.rectangle((left, top, right, bottom), outline="red", width=5)
     
     # Create Heatmap overlay
-    try:
-        cmap = cm.get_cmap('jet')
-        heatmap_array = cmap(saliency.cpu().numpy())
-        heatmap_img = Image.fromarray((heatmap_array[:, :, :3] * 255).astype(np.uint8))
-        heatmap_img = heatmap_img.resize(image.size, Image.Resampling.BILINEAR)
-        blended_heatmap = Image.blend(image.convert("RGBA"), heatmap_img.convert("RGBA"), alpha=0.4).convert("RGB")
-    except Exception:
-        blended_heatmap = None
+    cmap = colormaps.get_cmap("jet")
+    heatmap_array = cmap(saliency.cpu().numpy())
+    heatmap_img = Image.fromarray((heatmap_array[:, :, :3] * 255).astype(np.uint8))
+    heatmap_img = heatmap_img.resize(image.size, Image.Resampling.BILINEAR)
+    blended_heatmap = Image.blend(image.convert("RGBA"), heatmap_img.convert("RGBA"), alpha=0.4).convert("RGB")
 
     return annotated, (left, top, right, bottom), blended_heatmap
 
@@ -96,7 +98,7 @@ uploaded_file = st.file_uploader("Choose an X-ray image...", type=["jpg", "jpeg"
 if uploaded_file is not None:
     # Display the uploaded image
     image = Image.open(uploaded_file).convert('RGB')
-    st.image(image, caption="Uploaded X-ray", use_container_width=True)
+    st.image(image, caption="Uploaded X-ray", width="stretch")
     
     st.write("Analyzing...")
     
@@ -124,10 +126,10 @@ if uploaded_file is not None:
             st.subheader("Approximate Area of Interest")
             col1, col2 = st.columns(2)
             with col1:
-                st.image(annotated_image, caption="Red box: model attention estimate", use_container_width=True)
+                st.image(annotated_image, caption="Red box: model attention estimate", width="stretch")
             with col2:
                 if heatmap is not None:
-                    st.image(heatmap, caption="Heatmap: model focus intensity", use_container_width=True)
+                    st.image(heatmap, caption="Heatmap: model focus intensity", width="stretch")
             st.warning("These visualizations are AI attention estimates. They are not a medical diagnosis or a validated fracture location detector.")
         else:
             st.info("The model could not produce a reliable attention estimate for this image.")
