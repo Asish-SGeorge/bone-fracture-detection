@@ -96,7 +96,7 @@ uploaded_file = st.file_uploader("Choose an X-ray image...", type=["jpg", "jpeg"
 if uploaded_file is not None:
     # Display the uploaded image
     image = Image.open(uploaded_file).convert('RGB')
-    st.image(image, caption='Uploaded X-ray', use_column_width=True)
+    st.image(image, caption="Uploaded X-ray", use_container_width=True)
     
     st.write("Analyzing...")
     
@@ -124,10 +124,10 @@ if uploaded_file is not None:
             st.subheader("Approximate Area of Interest")
             col1, col2 = st.columns(2)
             with col1:
-                st.image(annotated_image, caption="Red box: model attention estimate", use_column_width=True)
+                st.image(annotated_image, caption="Red box: model attention estimate", use_container_width=True)
             with col2:
                 if heatmap is not None:
-                    st.image(heatmap, caption="Heatmap: model focus intensity", use_column_width=True)
+                    st.image(heatmap, caption="Heatmap: model focus intensity", use_container_width=True)
             st.warning("These visualizations are AI attention estimates. They are not a medical diagnosis or a validated fracture location detector.")
         else:
             st.info("The model could not produce a reliable attention estimate for this image.")
