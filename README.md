@@ -30,3 +30,6 @@ Open `http://localhost:8501` and upload a JPG or PNG X-ray image. The first run 
 ## Model and limitations
 
 The app uses `prithivMLmods/Bone-Fracture-Detection`. The displayed box and heatmap are attention estimates, not validated fracture-localization annotations. Do not use the output for diagnosis or treatment decisions.
+
+
+https://bone-fracture-detection-lsakkm3v7sx9yciz4nqqiw.streamlit.app/
